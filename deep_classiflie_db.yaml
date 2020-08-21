@@ -1,0 +1,43 @@
+db:
+  update_db: True
+  debug_enabled: False
+  db_commit_freq: 500
+  use_chrome: False
+  db_env_file: "" # defaults to $HOME/.dcdb_env or .dcdb_env_dev if in DEV_MODE
+scraping:
+  factbase:
+    init_wait: 0.2
+    max_pages: 1000
+    connection_timeout: 120
+    max_retries: 8
+    sql:
+      latest_statement: 'select max(t_date) from fbase_transcripts'
+      check_tid: 'select tid from fbase_transcripts where tid in'
+      txcpt_invariant: >-
+        INTO fbase_transcripts
+        (tid, t_date, transcript_type, transcript_url, transcript_sent)
+        VALUES (%s, %s, %s, %s, %s )
+      stmt_invariant: >-
+        INTO fbase_statements
+        (tid, sid, statement_text, sentiment)
+        VALUES (%s, %s, %s, %s)
+  wapo:
+    init_wait: 10
+    max_retries: 4
+    sql:
+      latest_statement: 'select max(s_date) from wp_statements where iid=1'
+      stmt_invariant: >-
+        INTO wp_statements
+        (iid,statement_text, repeats, topic, source, pinnochios, s_date, statement_hash)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, SHA1(%s))
+  twitter:
+    default_latest_stmt: 0  # need to test init load logic by temp changing latest_statement sql
+    sql:
+      latest_statement: 'select max(end_thread_tweet_id) from dcbot_tweets'
+      stmt_invariant: >-
+        INTO dcbot_tweets
+        (end_thread_tweet_id, statement_text, t_start_date, t_end_date, retweet, statement_hash)
+        VALUES (%s, %s, %s, %s, %s, SHA1(%s))
+dirs:
+  base_dir: "" # defaults to $HOME
+  log_dir: "" # defaults to {base_dir}/temp/{constants.APP_NAME}/logs
