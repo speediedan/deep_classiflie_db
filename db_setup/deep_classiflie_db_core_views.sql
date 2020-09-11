@@ -43,7 +43,7 @@ desired_range as
 bounds as
 (select min(dr.swc) as minb, max(dr.swc) as maxb
 from desired_range dr)
-select wp.stext as statement_text, wp.s_type, wp.sdate as s_date, 'False' from all_wp wp, bounds where wp.swc between bounds.minb and bounds.maxb order by wp.sdate, wp.stext limit 1000;
+select wp.stext as statement_text, wp.s_type, wp.sdate as s_date, 'False' as label from all_wp wp, bounds where wp.swc between bounds.minb and bounds.maxb order by wp.sdate, wp.stext limit 1000;
 create or replace view truths_tiny as
 WITH
 all_truths_tiny as
