@@ -22,11 +22,11 @@ def fetch_one(cnx: PooledMySQLConnection, sql: str) -> Tuple:
     return one_tup
 
 
-def single_execute(conn: PooledMySQLConnection, statement_sql: str, rec: Tuple):
-    cursor = conn.cursor(prepared=True)
+def single_execute(conn: PooledMySQLConnection, statement_sql: str, rec: Tuple = None):
+    cursor = conn.cursor(prepared=True) if rec else conn.cursor()
     exec_rowcnt, exec_errors = 0, 0
     try:
-        cursor.execute(statement_sql, rec)
+        cursor.execute(statement_sql, rec) if rec else cursor.execute(statement_sql)
     except Error as err:
         logger.debug(f"Adding record to error list. MariaDB error received: {err}")
         logger.debug(f"error: {err.errno}, {err.sqlstate}, {err.msg}")

@@ -21,11 +21,15 @@ def get_cnxp_handle() -> MySQLConnectionPool:
     return cnxp
 
 
-def refresh_db(conf_file: MutableMapping = None, cnxp: MySQLConnectionPool = None, tweetbot_conf: Tuple = None,
-               api_handle: API = None, nontwtr_update: bool = False) -> None:
-    config = envconfig.EnvConfig(conf_file, tweetbot_conf).config
+def refresh_db(conf_file: MutableMapping = None, cnxp: MySQLConnectionPool = None, svc_conf: Tuple = None,
+               api_handle: API = None, batch_infsvc: bool = False, nontwtr_update: bool = False) -> None:
+    config = envconfig.EnvConfig(conf_file, svc_conf).config
     cnxp = cnxp or get_cnxp_handle()
-    if nontwtr_update or not config.db.tweetbot.enabled:
+    if batch_infsvc:
+        FactbaseScraper(config, cnxp)
+        WapoScraper(config, cnxp)
+        DCBotTweetScraper(config, cnxp, api_handle)
+    elif nontwtr_update or not config.db.tweetbot.enabled:
         FactbaseScraper(config, cnxp)
         WapoScraper(config, cnxp)
     else:
