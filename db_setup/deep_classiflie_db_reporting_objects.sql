@@ -1099,7 +1099,7 @@ where t.tid=s.tid and s.tid=isp.tid and s.sid=isp.sid and t.t_date > lm.inf_star
 analyze_ids as
 (select us.tid, us.sid from unlabeled_stmts us left join published_stmts ps
 on us.tid=ps.tid and us.sid=ps.sid where ps.tid is NULL)
-select s.tid, s.sid, t.t_date, t.transcript_url, statement_text from fbase_statements s, fbase_transcripts t, analyze_ids ai where t.tid=s.tid and s.tid=ai.tid and s.sid = ai.sid and s.wc between 7 and 107;
+select s.tid, s.sid, statement_text, 0 as ctxt_type, t.t_date,  t.transcript_url as url from fbase_statements s, fbase_transcripts t, analyze_ids ai where t.tid=s.tid and s.tid=ai.tid and s.sid = ai.sid and s.wc between 7 and 107;
 create or replace view tweets_to_analyze as
 with latest_metadata as
 (select mm.model_version as model_version, DATE_ADD(dm.test_end_date, INTERVAL 1 DAY) as inf_start_date from model_metadata mm, ds_metadata dm
@@ -1114,5 +1114,5 @@ where itp.thread_id=dt.thread_id and dt.t_end_date > lm.inf_start_date),
 analyze_ids as
 (select ut.thread_id from unlabeled_tweets ut left join published_tweets pt
 on ut.thread_id=pt.thread_id where pt.thread_id is NULL)
-select dt.thread_id, dt.t_end_date, dt.end_thread_tweet_id, statement_text from dcbot_tweets dt, analyze_ids ai
+select dt.thread_id, dt.end_thread_tweet_id, statement_text, 1 as ctxt_type, dt.t_end_date, CONCAT('https://twitter.com/a/status/',dt.end_thread_tweet_id) as url from dcbot_tweets dt, analyze_ids ai
 where dt.thread_id=ai.thread_id and dt.wc between 7 and 107 and dt.retweet=0;

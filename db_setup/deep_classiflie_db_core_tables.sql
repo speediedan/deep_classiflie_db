@@ -269,9 +269,23 @@ COMMENT='pinata credentials for pinata';
 drop table if exists cloudflare_creds;
 CREATE TABLE cloudflare_creds (
     api_key varchar(80) NOT NULL COMMENT 'api secret key for cloudflare',
+    zone_id varchar(80) NOT NULL COMMENT 'zone_id for relevant cloudflare domain',
+    dns_record_id_prod varchar(80) NOT NULL COMMENT 'record id for prod TXT record',
+    dns_record_id_dev varchar(80) NOT NULL COMMENT 'record id for dev TXT record',
     account_email varchar(80) NOT NULL COMMENT ''
 )
 ENGINE=InnoDB
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_unicode_ci
 COMMENT='api dns update credentials for cloudflare';
+drop table if exists pinned_cids;
+CREATE TABLE pinned_cids (
+    pin_svc_id INT NOT NULL COMMENT 'pinning service used, initially only pinata=1',
+    cid VARCHAR(150) NOT NULL  COMMENT 'ipfs has of content',
+    pinsize INT NOT NULL COMMENT 'size in bytes of pinned content',
+    p_date TIMESTAMP NOT NULL DEFAULT 0 COMMENT 'timestamp pin logged'
+)
+ENGINE=InnoDB
+DEFAULT CHARSET=utf8mb4
+COLLATE=utf8mb4_unicode_ci
+COMMENT='pinned cids';
