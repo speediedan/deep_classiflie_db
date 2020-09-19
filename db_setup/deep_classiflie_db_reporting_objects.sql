@@ -735,7 +735,7 @@ round(avg(correct_incorrect) - avg(confidence),3) acc_conf_delta
 from confidence_buckets
 group by confidence_bucket
 order by confidence_bucket;
-create or replace view max_acc_nontweets as
+create or replace view max_ppv_nontweets as
 with test_data_filter as
 (select * from model_analysis_rpts where
 model_version in (select max(model_version) from model_analysis_rpts where report_type='model_rpt_gt')
@@ -783,7 +783,7 @@ target_bucket as
 (select confidence_bucket, acc, ppv, npv, ppr, npr from bucket_stats where ppv=(select max(ppv) from bucket_stats) order by confidence_bucket limit 1)
 select tb.acc as bucket_acc, concat(round((cb.confidence_bucket-1)*0.04*100,0), '-', round(cb.confidence_bucket*0.04*100,0),'%') as conf_percentile, tb.ppv as pos_pred_acc, tb.npv as neg_pred_acc, tb.ppr as pos_pred_ratio, tb.npr as neg_pred_ratio, cb.statement_id, cb.statement_text, tp, tn, fp, fn
 from confidence_buckets cb, target_bucket tb  where cb.confidence_bucket=tb.confidence_bucket;
-create or replace view max_acc_tweets as
+create or replace view max_ppv_tweets as
 with test_data_filter as
 (select * from model_analysis_rpts where
 model_version in (select max(model_version) from model_analysis_rpts where report_type='model_rpt_gt')
@@ -831,8 +831,7 @@ target_bucket as
 (select confidence_bucket, acc, ppv, npv, ppr, npr from bucket_stats where ppv=(select max(ppv) from bucket_stats) order by confidence_bucket limit 1)
 select tb.acc as bucket_acc, concat(round((cb.confidence_bucket-1)*0.1*100,0), '-', round(cb.confidence_bucket*0.1*100,0),'%') as conf_percentile, tb.ppv as pos_pred_acc, tb.npv as neg_pred_acc, tb.ppr as pos_pred_ratio, tb.npr as neg_pred_ratio, cb.statement_id, cb.statement_text, tp, tn, fp, fn
 from confidence_buckets cb, target_bucket tb  where cb.confidence_bucket=tb.confidence_bucket;
-
-create or replace view min_acc_nontweets as
+create or replace view min_ppv_nontweets as
 with test_data_filter as
 (select * from model_analysis_rpts where
 model_version in (select max(model_version) from model_analysis_rpts where report_type='model_rpt_gt')
@@ -880,7 +879,7 @@ target_bucket as
 (select confidence_bucket, acc, ppv, npv, ppr, npr from bucket_stats where ppv=(select min(ppv) from bucket_stats) order by confidence_bucket limit 1)
 select tb.acc as bucket_acc, concat(round((cb.confidence_bucket-1)*0.04*100,0), '-', round(cb.confidence_bucket*0.04*100,0),'%') as conf_percentile, tb.ppv as pos_pred_acc, tb.npv as neg_pred_acc, tb.ppr as pos_pred_ratio, tb.npr as neg_pred_ratio, cb.statement_id, cb.statement_text, tp, tn, fp, fn
 from confidence_buckets cb, target_bucket tb  where cb.confidence_bucket=tb.confidence_bucket;
-create or replace view min_acc_tweets as
+create or replace view min_ppv_tweets as
 with test_data_filter as
 (select * from model_analysis_rpts where
 model_version in (select max(model_version) from model_analysis_rpts where report_type='model_rpt_gt')
@@ -930,13 +929,13 @@ select tb.acc as bucket_acc, concat(round((cb.confidence_bucket-1)*0.1*100,0), '
 from confidence_buckets cb, target_bucket tb  where cb.confidence_bucket=tb.confidence_bucket;
 create or replace view pred_explr_stmts as
 with man as
-(select 'max_acc_nontweets' as bucket_type, bucket_acc, conf_percentile, pos_pred_acc, neg_pred_acc, pos_pred_ratio, neg_pred_ratio,  statement_id, statement_text, 0 as stype, tp, tn, fp, fn from max_acc_nontweets order by RAND(2718) limit 100),
+(select 'max_ppv_nontweets' as bucket_type, bucket_acc, conf_percentile, pos_pred_acc, neg_pred_acc, pos_pred_ratio, neg_pred_ratio,  statement_id, statement_text, 0 as stype, tp, tn, fp, fn from max_ppv_nontweets order by RAND(2718) limit 100),
 mat as
-(select 'max_acc_tweets' as bucket_type, bucket_acc, conf_percentile, pos_pred_acc, neg_pred_acc, pos_pred_ratio, neg_pred_ratio, statement_id, statement_text, 1 as stype, tp, tn, fp, fn from max_acc_tweets order by RAND(2718) limit 100),
+(select 'max_ppv_tweets' as bucket_type, bucket_acc, conf_percentile, pos_pred_acc, neg_pred_acc, pos_pred_ratio, neg_pred_ratio, statement_id, statement_text, 1 as stype, tp, tn, fp, fn from max_ppv_tweets order by RAND(2718) limit 100),
 mian as
-(select 'min_acc_nontweets' as bucket_type, bucket_acc, conf_percentile, pos_pred_acc, neg_pred_acc, pos_pred_ratio, neg_pred_ratio,  statement_id, statement_text, 0 as stype, tp, tn, fp, fn from min_acc_nontweets order by RAND(2718) limit 100),
+(select 'min_ppv_nontweets' as bucket_type, bucket_acc, conf_percentile, pos_pred_acc, neg_pred_acc, pos_pred_ratio, neg_pred_ratio,  statement_id, statement_text, 0 as stype, tp, tn, fp, fn from min_ppv_nontweets order by RAND(2718) limit 100),
 miat as
-(select 'min_acc_tweets' as bucket_type, bucket_acc, conf_percentile, pos_pred_acc, neg_pred_acc, pos_pred_ratio, neg_pred_ratio,  statement_id, statement_text, 1 as stype, tp, tn, fp, fn from min_acc_tweets order by RAND(2718) limit 100),
+(select 'min_ppv_tweets' as bucket_type, bucket_acc, conf_percentile, pos_pred_acc, neg_pred_acc, pos_pred_ratio, neg_pred_ratio,  statement_id, statement_text, 1 as stype, tp, tn, fp, fn from min_ppv_tweets order by RAND(2718) limit 100),
 distinct_stmts as
 (
 select * from man
@@ -1116,3 +1115,82 @@ analyze_ids as
 on ut.thread_id=pt.thread_id where pt.thread_id is NULL)
 select dt.thread_id, dt.end_thread_tweet_id, statement_text, 1 as ctxt_type, dt.t_end_date, CONCAT('https://twitter.com/a/status/',dt.end_thread_tweet_id) as url from dcbot_tweets dt, analyze_ids ai
 where dt.thread_id=ai.thread_id and dt.wc between 7 and 107 and dt.retweet=0;
+create or replace view latest_scored_false_statements as
+with last_dsid as
+(select dsid from model_metadata where model_version=(select max(model_version) from model_metadata)),
+new_falsehoods as
+(select sid, s_date, statement_text from wp_statements
+where s_date > (select test_end_date from ds_metadata dsm, last_dsid ld where ds_type='converged_filtered' and dsm.dsid = ld.dsid)),
+-- test version: where s_date > DATE_SUB((select test_end_date from ds_metadata dsm, last_dsid ld where ds_type='converged_filtered' and dsm.dsid = ld.dsid), INTERVAL 30 DAY)),
+matched_falsehood_truths as (
+select nf.sid as thread_id,
+nf.s_date as s_date,
+SUBSTRING_INDEX(bftdc.truth_id ,'***',1) AS tid,
+CAST(SUBSTRING_INDEX(bftdc.truth_id ,'***',-1) as INT) AS sid,
+bftdc.l2dist as l2dist,
+nf.statement_text as falsehood_text,
+fs.statement_text as truth_text
+from new_falsehoods nf, base_false_truth_del_cands bftdc, fbase_statements fs
+where nf.sid = bftdc.falsehood_id
+and fs.tid = SUBSTRING_INDEX(bftdc.truth_id ,'***',1)
+and fs.sid = CAST(SUBSTRING_INDEX(bftdc.truth_id ,'***',-1) as INT)
+and bftdc.l2dist < 0.04
+)
+select min(l2dist), thread_id, s_date, tid, sid, falsehood_text, truth_text from matched_falsehood_truths group by thread_id;
+create or replace view latest_pub_stmt_updates as
+select isp.tid, isp.sid, lsfs.s_date, isp.model_version from latest_scored_false_statements lsfs, infsvc_stmts_published isp, model_metadata mm
+where lsfs.tid=isp.tid
+and lsfs.sid=isp.sid
+and mm.model_version=isp.model_version
+and mm.model_version=(select max(model_version) from model_metadata)
+and lsfs.s_date <= (select max(s_date) from wp_statements);
+create or replace view latest_scored_false_tweets as
+with last_dsid as
+(select dsid from model_metadata where model_version=(select max(model_version) from model_metadata)),
+new_falsehoods as
+(select sid, s_date, statement_text from wp_statements
+where s_date > (select test_end_date from ds_metadata dsm, last_dsid ld where ds_type='converged_filtered' and dsm.dsid = ld.dsid)),
+-- test version: where s_date > DATE_SUB((select test_end_date from ds_metadata dsm, last_dsid ld where ds_type='converged_filtered' and dsm.dsid = ld.dsid), INTERVAL 30 DAY)),
+matched_falsehood_truths as (
+select nf.sid as f_thread_id,
+nf.s_date as s_date,
+CAST(SUBSTRING_INDEX(bftdc.truth_id ,'***',1) as INT) AS thread_id,
+CAST(SUBSTRING_INDEX(bftdc.truth_id ,'***',-1) as INT) AS end_thread_tweet_id,
+bftdc.l2dist as l2dist,
+nf.statement_text as falsehood_text,
+dt.statement_text as truth_text
+from new_falsehoods nf, base_false_truth_del_cands bftdc, dcbot_tweets dt
+where nf.sid = bftdc.falsehood_id
+and dt.thread_id = CAST(SUBSTRING_INDEX(bftdc.truth_id ,'***',1) as INT)
+and dt.end_thread_tweet_id = CAST(SUBSTRING_INDEX(bftdc.truth_id ,'***', -1) as INT)
+and bftdc.l2dist < 0.04
+)
+select min(l2dist), f_thread_id, s_date, thread_id, falsehood_text, truth_text from matched_falsehood_truths group by f_thread_id;
+create or replace view latest_pub_tweet_updates as
+select itp.thread_id, lsft.s_date, itp.model_version from latest_scored_false_tweets lsft, infsvc_tweets_published itp, model_metadata mm
+where lsft.thread_id=itp.thread_id
+and mm.model_version=itp.model_version
+and mm.model_version=(select max(model_version) from model_metadata)
+and lsft.s_date <= (select max(s_date) from wp_statements);
+create or replace view latest_pub_stmt_nonlabel_updates as
+with last_dsid as
+(select dsid from model_metadata where model_version=(select max(model_version) from model_metadata)),
+all_cand_ids as
+(select fs.tid, fs.sid, ft.t_date
+from infsvc_stmts_published isp, fbase_statements fs, fbase_transcripts ft where
+fs.tid=ft.tid
+and fs.tid=isp.tid
+and fs.sid=isp.sid
+and ft.t_date > (select test_end_date from ds_metadata dsm, last_dsid ld where ds_type='converged_filtered' and dsm.dsid = ld.dsid)
+and ft.t_date <= (select max(s_date) from wp_statements))
+select * from all_cand_ids;
+create or replace view latest_pub_tweet_nonlabel_updates as
+with last_dsid as
+(select dsid from model_metadata where model_version=(select max(model_version) from model_metadata)),
+all_cand_ids as
+(select dt.thread_id, dt.t_end_date
+from infsvc_tweets_published itp, dcbot_tweets dt where dt.thread_id=itp.thread_id
+and dt.t_end_date > (select test_end_date from ds_metadata dsm, last_dsid ld where ds_type='converged_filtered' and dsm.dsid = ld.dsid)
+and dt.t_end_date <= (select max(s_date) from wp_statements))
+select * from all_cand_ids;
+
