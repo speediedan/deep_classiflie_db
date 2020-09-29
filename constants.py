@@ -3,6 +3,9 @@ import os
 import re
 
 curr_base = os.path.dirname(os.path.realpath(__file__)).rsplit('/', 1)[1]
+DB_CONN_MSG_TEMPLATE = "connection_id={connid} pid={pid}, before running sql: {sql} via {dbfunc}"
+DB_CONN_OPEN_DEBUG_TEMPLATE = "DB connection opened: " + DB_CONN_MSG_TEMPLATE
+DB_CONN_CLOSED_DEBUG_TEMPLATE = "Closing DB connection: " + DB_CONN_MSG_TEMPLATE
 DEF_DB_PRJ_NAME = "deep_classiflie_db"
 DEV_MODE = True if curr_base != DEF_DB_PRJ_NAME else False
 APP_NAME = curr_base
