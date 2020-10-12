@@ -65,7 +65,9 @@ class FactbaseScraper(Scraper):
                 if retries > 1:
                     logger.info(f"Failed retry with previous session, creating a new session for next retry")
                     self.session = requests.Session()
-                response = self.session.get(t_url, headers=self.headers)
+                response = self.session.get(t_url, headers=self.headers,
+                                            timeout=(self.config.scraping.factbase.request_timeouts.connect,
+                                                     self.config.scraping.factbase.request_timeouts.read))
                 fetch_success = True
             except requests.exceptions.RequestException as req_err:
                 logger.info(f"Recieved request exception: {req_err}")

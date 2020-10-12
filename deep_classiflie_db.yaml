@@ -10,6 +10,9 @@ scraping:
     max_pages: 1000
     connection_timeout: 120
     max_retries: 8
+    request_timeouts:
+      connect: 5
+      read: 30
     sql:
       latest_statement: 'select max(t_date) from fbase_transcripts'
       check_tid: 'select tid from fbase_transcripts where tid in'
