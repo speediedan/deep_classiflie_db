@@ -1116,6 +1116,8 @@ on ut.thread_id=pt.thread_id where pt.thread_id is NULL)
 select dt.thread_id, dt.end_thread_tweet_id, statement_text, 1 as ctxt_type, dt.t_end_date, CONCAT('https://twitter.com/a/status/',dt.end_thread_tweet_id) as url from dcbot_tweets dt, analyze_ids ai
 where dt.thread_id=ai.thread_id and dt.wc between 7 and 107 and dt.retweet=0;
 create or replace view latest_scored_false_statements as
+-- wp scored falsehood statements that were added after the end of the current model's test set
+-- a new dataset should be generated to trigger updating of the base_false_truth_del_cands mapping
 with last_dsid as
 (select dsid from model_metadata where model_version=(select max(model_version) from model_metadata)),
 new_falsehoods as
@@ -1138,6 +1140,7 @@ and bftdc.l2dist < 0.04
 )
 select min(l2dist), thread_id, s_date, tid, sid, falsehood_text, truth_text from matched_falsehood_truths group by thread_id;
 create or replace view latest_pub_stmt_updates as
+-- scored stmts that were also published
 select isp.tid, isp.sid, lsfs.s_date, isp.model_version from latest_scored_false_statements lsfs, infsvc_stmts_published isp, model_metadata mm
 where lsfs.tid=isp.tid
 and lsfs.sid=isp.sid
@@ -1145,6 +1148,8 @@ and mm.model_version=isp.model_version
 and mm.model_version=(select max(model_version) from model_metadata)
 and lsfs.s_date <= (select max(s_date) from wp_statements);
 create or replace view latest_scored_false_tweets as
+-- wp scored falsehood tweets that were added after the end of the current model's test set
+-- a new dataset should be generated to trigger updating of the base_false_truth_del_cands mapping
 with last_dsid as
 (select dsid from model_metadata where model_version=(select max(model_version) from model_metadata)),
 new_falsehoods as
@@ -1167,12 +1172,15 @@ and bftdc.l2dist < 0.04
 )
 select min(l2dist), f_thread_id, s_date, thread_id, falsehood_text, truth_text from matched_falsehood_truths group by f_thread_id;
 create or replace view latest_pub_tweet_updates as
-select itp.thread_id, lsft.s_date, itp.model_version from latest_scored_false_tweets lsft, infsvc_tweets_published itp, model_metadata mm
+-- scored tweets that were also published
+select itp.thread_id, lsft.s_date, itp.model_version 
+from latest_scored_false_tweets lsft, infsvc_tweets_published itp, model_metadata mm
 where lsft.thread_id=itp.thread_id
 and mm.model_version=itp.model_version
 and mm.model_version=(select max(model_version) from model_metadata)
 and lsft.s_date <= (select max(s_date) from wp_statements);
 create or replace view latest_pub_stmt_nonlabel_updates as
+-- statements that have been issued and published since the current model test end date
 with last_dsid as
 (select dsid from model_metadata where model_version=(select max(model_version) from model_metadata)),
 all_cand_ids as
@@ -1185,6 +1193,7 @@ and ft.t_date > (select test_end_date from ds_metadata dsm, last_dsid ld where d
 and ft.t_date <= (select max(s_date) from wp_statements))
 select * from all_cand_ids;
 create or replace view latest_pub_tweet_nonlabel_updates as
+-- tweets that have been issued and published since the current model test end date
 with last_dsid as
 (select dsid from model_metadata where model_version=(select max(model_version) from model_metadata)),
 all_cand_ids as
@@ -1193,4 +1202,99 @@ from infsvc_tweets_published itp, dcbot_tweets dt where dt.thread_id=itp.thread_
 and dt.t_end_date > (select test_end_date from ds_metadata dsm, last_dsid ld where ds_type='converged_filtered' and dsm.dsid = ld.dsid)
 and dt.t_end_date <= (select max(s_date) from wp_statements))
 select * from all_cand_ids;
-
+create or replace view auc_published_stmts as
+with pub_data_filter as
+(select * from infsvc_stmts_published where
+model_version in (select max(model_version) from model_analysis_rpts where report_type='model_rpt_gt')
+),
+positives as
+(select
+raw_pred as pred_pos
+from pub_data_filter where actual_label=1
+order by rand()),
+negatives as
+(select
+raw_pred as pred_neg
+from pub_data_filter where actual_label=0
+order by rand())
+select
+avg(case
+when p.pred_pos > n.pred_neg then 1
+when p.pred_pos = n.pred_neg then 0.5
+else 0 end) as est_auc
+from positives p cross join negatives n;
+create or replace view published_nontweet_accuracy_summ as
+with pub_data_filter as
+(select * from infsvc_stmts_published where
+model_version in (select max(model_version) from model_analysis_rpts where report_type='model_rpt_gt')
+),
+confidence_correct as
+(select
+model_version,
+tid,
+if(actual_label=prediction,1,0) correct_incorrect,
+raw_confidence as confidence
+from pub_data_filter),
+confidence_buckets as
+(select model_version, tid, correct_incorrect,
+avg(correct_incorrect) over () as global_acc,
+confidence,
+ntile(10)  over (order by confidence) as conf_bucket
+from confidence_correct)
+select
+max(confidence) as max_confidence,
+model_version,
+avg(correct_incorrect) as bucket_acc,
+round(est_auc,2) as auc,
+round(global_acc,2) as acc
+from confidence_buckets, auc_published_stmts
+group by conf_bucket, global_acc, est_auc
+order by conf_bucket;
+create or replace view auc_published_tweets as
+with pub_data_filter as
+(select * from infsvc_tweets_published where
+model_version in (select max(model_version) from model_analysis_rpts where report_type='model_rpt_gt')
+),
+positives as
+(select
+raw_pred as pred_pos
+from pub_data_filter where actual_label=1
+order by rand()),
+negatives as
+(select
+raw_pred as pred_neg
+from pub_data_filter where actual_label=0
+order by rand())
+select
+avg(case
+when p.pred_pos > n.pred_neg then 1
+when p.pred_pos = n.pred_neg then 0.5
+else 0 end) as est_auc
+from positives p cross join negatives n;
+create or replace view published_tweet_accuracy_summ as
+with pub_data_filter as
+(select * from infsvc_tweets_published where
+model_version in (select max(model_version) from model_analysis_rpts where report_type='model_rpt_gt')
+),
+confidence_correct as
+(select
+model_version,
+thread_id as tid,
+if(actual_label=prediction,1,0) correct_incorrect,
+raw_confidence as confidence
+from pub_data_filter),
+confidence_buckets as
+(select model_version, tid, correct_incorrect,
+avg(correct_incorrect) over () as global_acc,
+confidence,
+ntile(10)  over (order by confidence) as conf_bucket
+from confidence_correct)
+select
+max(confidence) as max_confidence,
+model_version,
+avg(correct_incorrect) as bucket_acc,
+round(est_auc,2) as auc,
+round(global_acc,2) as acc
+from confidence_buckets, auc_published_tweets
+group by conf_bucket, global_acc, est_auc
+order by conf_bucket;
